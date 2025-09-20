@@ -17,11 +17,22 @@ db.init_app(app)
 api = Api(app)
 
 
+# -----------------------
+# Root Route
+# -----------------------
+@app.route('/')
+def index():
+    return {"message": "Welcome to the Plant API"}
+
+
+# -----------------------
+# /plants
+# -----------------------
 class Plants(Resource):
 
     def get(self):
         plants = [plant.to_dict() for plant in Plant.query.all()]
-        return make_response(jsonify(plants), 200)
+        return make_response(plants, 200)
 
     def post(self):
         data = request.get_json()
@@ -41,15 +52,44 @@ class Plants(Resource):
 api.add_resource(Plants, '/plants')
 
 
+# -----------------------
+# /plants/<id>
+# -----------------------
 class PlantByID(Resource):
 
     def get(self, id):
-        plant = Plant.query.filter_by(id=id).first().to_dict()
-        return make_response(jsonify(plant), 200)
+        plant = Plant.query.filter_by(id=id).first()
+        if not plant:
+            return make_response({"error": "Plant not found"}, 404)
+        return make_response(plant.to_dict(), 200)
+
+    def patch(self, id):
+        plant = Plant.query.filter_by(id=id).first()
+        if not plant:
+            return make_response({"error": "Plant not found"}, 404)
+
+        data = request.get_json()
+        for key, value in data.items():
+            setattr(plant, key, value)
+
+        db.session.commit()
+        return make_response(plant.to_dict(), 200)
+
+    def delete(self, id):
+        plant = Plant.query.filter_by(id=id).first()
+        if not plant:
+            return make_response({"error": "Plant not found"}, 404)
+
+        db.session.delete(plant)
+        db.session.commit()
+        return make_response("", 204)
 
 
 api.add_resource(PlantByID, '/plants/<int:id>')
 
 
+# -----------------------
+# Run the app
+# -----------------------
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
